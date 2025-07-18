@@ -1,13 +1,14 @@
 package tests;
-import io.qameta.allure.Step;
+
+import io.qameta.allure.junit4.DisplayName;
 import io.restassured.response.Response;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-
-
 import java.util.Arrays;
 import java.util.Collection;
+import static utils.Constants.*;
+
 
 @RunWith(Parameterized.class)
 public class OrderCreationTest extends BaseTest {
@@ -31,7 +32,7 @@ public class OrderCreationTest extends BaseTest {
     private String track;
 
     @Test
-    @Step("Метод POST to /api/v1/orders - создаём заказ используя параметризацию")
+    @DisplayName("Метод POST to /api/v1/orders - создаём заказ используя параметризацию")
     public void testCreateOrder() {
         String body = "{"
                 + "\"firstName\": \"Ivan\","
@@ -48,7 +49,7 @@ public class OrderCreationTest extends BaseTest {
         Response response = givenRequest()
                 .body(body)
                 .when()
-                .post("/api/v1/orders");
+                .post(createOrder);
 
         response.then().statusCode(201);
         track = response.then().extract().path("track").toString();

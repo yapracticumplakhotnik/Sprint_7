@@ -1,42 +1,75 @@
 package tests;
 
-
-import io.qameta.allure.Step;
-import io.restassured.response.Response;
+import io.qameta.allure.junit4.DisplayName;
 import org.junit.*;
-
-
 import static org.hamcrest.Matchers.*;
+import static utils.Constants.*;
 
 public class CourierCreationTest extends BaseTest {
 
-    private String courierLogin = "testCourierLogin";
-    private String courierPassword = "testPassword";
-    private String courierName = "testName";
+    public  String courierLogin = "{\"login\": \" + testCourierLogin + \"";
+    public String courierPassword = "\"password\": \" + testPassword + \"";
+    public   String courierName = "\"firstName\": \" + testName + \"}";
+
+    static class CreateCourier {
+        String login;
+        String password;
+        String firstName;
+
+        CreateCourier(String login, String password, String firstName) {
+            this.login = login;
+            this.password = password;
+            this.firstName = firstName;
+        }
+        public CreateCourier() {
+        }
+        public String getLogin() {
+            return login;
+        }
+        public void setLogin(String login) {
+            this.login = login;
+        }
+        public String getPassword() {
+            return password;
+        }
+        public void setPassword(String password) {
+            this.password = password;
+        }
+        public String getFirstName() {
+            return firstName;
+        }
+        public void setFirstName(String firstName) {
+            this.firstName = firstName;
+        }
+
+    }
 
     @Before
-    @Step("Метод POST to /api/v1/courier - курьера можно создать")
+    @DisplayName("Метод POST to /api/v1/courier - курьера можно создать")
     public void createCourier() {
         // Создаем курьера перед каждым тестом
-        String body = "{ \"login\": \"" + courierLogin + "\", \"password\": \"" + courierPassword + "\", \"firstName\": \"" + courierName + "\" }";
+        CreateCourier createCourierBody = new CreateCourier(courierLogin,courierPassword,courierName);
+        //бывшая реализация "{ \"login\": \"" + courierLogin + "\", \"password\": \"" + courierPassword + "\", \"firstName\": \"" + courierName + "\" }";
 
         givenRequest()
-                .body(body)
+                .body(createCourierBody)
                 .when()
-                .post("/api/v1/courier")
+                .post(createCourier)
                 .then()
                 .statusCode(anyOf(is(201), is(409))); // Если уже создан, 409
     }
 
     @Test
-    @Step("Метод POST to /api/v1/courier - запрос возвращает правильный код ответа и успешный запрос возвращает ok: true")
+    @DisplayName("Метод POST to /api/v1/courier - запрос возвращает правильный код ответа и успешный запрос возвращает ok: true")
     public void testCreateCourierSuccess() {
         String newLogin = "newCourier" + System.currentTimeMillis();
-        String body = "{ \"login\": \"" + newLogin + "\", \"password\": \"pass123\", \"firstName\": \"Name\" }";
+        CreateCourier createCourierBody =  new CreateCourier(newLogin,courierPassword,courierName);
+        //бывшая реализация "{ \"login\": \"" + newLogin + "\", \"password\": \"pass123\", \"firstName\": \"Name\" }";
+
         givenRequest()
-                .body(body)
+                .body(createCourierBody)
                 .when()
-                .post("/api/v1/courier")
+                .post(createCourier)
                 .then()
                 .statusCode(201)
                 .body("ok", equalTo(true));
@@ -45,42 +78,36 @@ public class CourierCreationTest extends BaseTest {
     }
 
     @Test
-    @Step("Метод POST to /api/v1/courier - нельзя создать двух одинаковых курьеров")
+    @DisplayName("Метод POST to /api/v1/courier - нельзя создать двух одинаковых курьеров")
     public void testCreateDuplicateCourier() {
-        String body = "{ \"login\": \"" + courierLogin + "\", \"password\": \"" + courierPassword + "\", \"firstName\": \"" + courierName + "\" }";
+        CreateCourier createCourierBody = new CreateCourier(courierLogin,courierPassword,courierName);
+        //бывшая реализация "{ \"login\": \"" + courierLogin + "\", \"password\": \"" + courierPassword + "\", \"firstName\": \"" + courierName + "\" }";
         givenRequest()
-                .body(body)
+                .body(createCourierBody)
                 .when()
-                .post("/api/v1/courier")
+                .post(createCourier)
                 .then()
                 .statusCode(409); // ожидается конфликт
     }
 
     @Test
-    @Step("Метод POST to /api/v1/courier - если одного из полей нет, запрос возвращает ошибку")
+    @DisplayName("Метод POST to /api/v1/courier - если одного из полей нет, запрос возвращает ошибку")
     public void testCreateCourierMissingFields() {
+
         String body = "{ \"login\": \"" + System.currentTimeMillis() + "\" }";
+
         givenRequest()
                 .body(body)
                 .when()
-                .post("/api/v1/courier")
+                .post(createCourier)
                 .then()
                 .statusCode(400);
     }
-    public int courierId;
-    @Step("Удаление курьера")
-    public Response deleteCourier(int courierId) {
-        String COURIER_PATH = "/api/v1/courier";
-        return givenRequest()
-                .header("Content-type", "application/json")
-                .when()
-                .delete(COURIER_PATH + "/" + courierId);
-    }
 
     @After
-    public void tearDown() {
-        if (courierId != 0) {
-           deleteCourier(courierId);
-        }
+    @Test
+    @DisplayName("Удаление курьера")
+    public void delete(){
+        tearDown();
     }
 }
