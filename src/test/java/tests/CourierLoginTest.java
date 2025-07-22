@@ -1,33 +1,25 @@
 package tests;
 
 import io.qameta.allure.junit4.DisplayName;
+import io.restassured.response.Response;
 import org.junit.*;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.is;
 import static utils.Constants.*;
 
 public class CourierLoginTest extends BaseTest {
 
-    private final String login = "testLoginAuth" + System.currentTimeMillis();
-    private final String password = "testPassword";
+    @Test
+    public void beforeLogin(){
+       createCourier();
+   }
 
-    @Before
-    public void createCourier() {
-        String body = "{ \"login\": \"" + login + "\", \"password\": \"" + password + "\", \"firstName\": \"AuthName\" }";
-        givenRequest()
-                .body(body)
-                .when()
-                .post(createCourier)
-                .then()
-                .statusCode(201);
-    }
-
+    LoginCourier loginCourierBody = new LoginCourier("testCourierLoginJenya","testPassword");
     @Test
     @DisplayName("Метод POST to /api/v1/courier/login - курьер может авторизоваться,успешный запрос возвращает id")
     public void testLoginSuccess() {
-        String body = "{ \"login\": \"" + login + "\", \"password\": \"" + password + "\" }";
-
         givenRequest()
-                .body(body)
+                .body(loginCourierBody)
                 .when()
                 .post(loginCourier)
                 .then()
@@ -39,10 +31,9 @@ public class CourierLoginTest extends BaseTest {
     @DisplayName("Метод POST to /api/v1/courier/login - система вернёт ошибку, если неправильно указать логин или пароль")
     public void testLoginWithWrongCredentials() {
 
-        String body = "{ \"login\": \"" + login + "\", \"password\": \"wrong\" }";
-
+        LoginCourier loginCourierBody = new LoginCourier("testCourierLoginJenya","testPasswordWrong");
         givenRequest()
-                .body(body)
+                .body(loginCourierBody)
                 .when()
                 .post(loginCourier)
                 .then()
@@ -52,20 +43,38 @@ public class CourierLoginTest extends BaseTest {
     @Test
     @DisplayName("Метод POST to /api/v1/courier/login - если какого-то поля нет, запрос возвращает ошибку")
     public void testLoginMissingFields() {
-        String body = "{ \"login\": \"" + login + "\" }"; // без пароля
-
+        // без пароля
+        LoginCourierMissingFields loginCourierMissingFields = new LoginCourierMissingFields("testCourierLoginJenya");
         givenRequest()
-                .body(body)
+                .body(loginCourierMissingFields)
                 .when()
                 .post(loginCourier)
                 .then()
                 .statusCode(400);
     }
-
-    @After
     @Test
-    @DisplayName("Удаление курьера")
-    public void deleteCourier(){
-        tearDown();
+    @DisplayName("Метод DELETE to /api/v1/courier/{id} - удалить курьера")
+    public void deleteCourier() {
+        //авторизация для получения id
+        Response loginResponse = givenRequest()
+                .body(loginCourierBody)
+                .when()
+                .post(loginCourier);
+        loginResponse.then().statusCode(200);
+        int courierId = loginResponse.jsonPath().getInt("id");
+        //удаление курьера по id
+        Response deleteResponse = givenRequest()
+                .when()
+                .delete(createCourier + courierId);
+        //проверка статуса и отсутствия курьера
+        deleteResponse.then()
+                .statusCode(anyOf(is(200), is(204)));
+        //проверка, что курьер больше не существует
+        givenRequest()
+                .body(loginCourierBody)
+                .when()
+                .post(loginCourier)
+                .then()
+                .statusCode(404);
     }
 }
