@@ -1,80 +1,58 @@
 package tests;
+import client.Courier;
+import client.Credentials;
+import client.QAScooterAPIClient;
+import io.restassured.response.ValidatableResponse;
+import org.junit.jupiter.api.*;
 
-import io.qameta.allure.junit4.DisplayName;
-import io.restassured.response.Response;
-import org.junit.*;
-import static org.hamcrest.Matchers.*;
-import static org.hamcrest.Matchers.is;
-import static utils.Constants.*;
 
-public class CourierLoginTest extends BaseTest {
+@TestMethodOrder(MethodOrderer.Alphanumeric.class)
+public class CourierLoginTest {
+    private QAScooterAPIClient client;
+    private Courier courier;
 
-    @Test
-    public void beforeLogin(){
-       createCourier();
-   }
+    private int courierId;
 
-    LoginCourier loginCourierBody = new LoginCourier("testCourierLoginJenya","testPassword");
+    @BeforeEach
+    public void beforeLogin() {
+        courier = new Courier("testCourierLoginJenya", "testPassword", "testName");
+        client = new QAScooterAPIClient();
+        client.createCourier(courier);
+
+    }
+
+
     @Test
     @DisplayName("Метод POST to /api/v1/courier/login - курьер может авторизоваться,успешный запрос возвращает id")
-    public void testLoginSuccess() {
-        givenRequest()
-                .body(loginCourierBody)
-                .when()
-                .post(loginCourier)
-                .then()
-                .statusCode(200)
-                .body("id", notNullValue());
+    public void test1LoginSuccess() {
+
+        Credentials credentials = Credentials.fromCourier(courier);
+        ValidatableResponse response = client.loginCourier(credentials);
+        int statusCode = response.extract().statusCode();
+        courierId = response.extract().jsonPath().getInt("id");
+        Assertions.assertEquals(200, statusCode);
+        Assertions.assertNotNull(courierId);
     }
 
     @Test
     @DisplayName("Метод POST to /api/v1/courier/login - система вернёт ошибку, если неправильно указать логин или пароль")
-    public void testLoginWithWrongCredentials() {
-
-        LoginCourier loginCourierBody = new LoginCourier("testCourierLoginJenya","testPasswordWrong");
-        givenRequest()
-                .body(loginCourierBody)
-                .when()
-                .post(loginCourier)
-                .then()
-                .statusCode(404);
+    public void test2LoginWithWrongCredentials() {
+        courier = new Courier("testCourierLoginJenyaWrong", "testPassword", "testName");
+        Credentials credentials = Credentials.fromCourier(courier);
+        ValidatableResponse response = client.loginCourier(credentials);
+        int statusCode = response.extract().statusCode();
+        Assertions.assertEquals(404, statusCode);
     }
 
     @Test
     @DisplayName("Метод POST to /api/v1/courier/login - если какого-то поля нет, запрос возвращает ошибку")
-    public void testLoginMissingFields() {
+    public void test3LoginMissingFields() {
         // без пароля
-        LoginCourierMissingFields loginCourierMissingFields = new LoginCourierMissingFields("testCourierLoginJenya");
-        givenRequest()
-                .body(loginCourierMissingFields)
-                .when()
-                .post(loginCourier)
-                .then()
-                .statusCode(400);
-    }
-    @Test
-    @DisplayName("Метод DELETE to /api/v1/courier/{id} - удалить курьера")
-    public void deleteCourier() {
-        //авторизация для получения id
-        Response loginResponse = givenRequest()
-                .body(loginCourierBody)
-                .when()
-                .post(loginCourier);
-        loginResponse.then().statusCode(200);
-        int courierId = loginResponse.jsonPath().getInt("id");
-        //удаление курьера по id
-        Response deleteResponse = givenRequest()
-                .when()
-                .delete(createCourier + courierId);
-        //проверка статуса и отсутствия курьера
-        deleteResponse.then()
-                .statusCode(anyOf(is(200), is(204)));
-        //проверка, что курьер больше не существует
-        givenRequest()
-                .body(loginCourierBody)
-                .when()
-                .post(loginCourier)
-                .then()
-                .statusCode(404);
+        courier = new Courier("testCourierLoginJenyaWrong", "", "testName");
+        Credentials credentials = Credentials.fromCourier(courier);
+        ValidatableResponse response = client.loginCourier(credentials);
+        int statusCode = response.extract().statusCode();
+        Assertions.assertEquals(400, statusCode);
+
     }
 }

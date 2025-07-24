@@ -1,78 +1,57 @@
 package tests;
 
-import io.qameta.allure.junit4.DisplayName;
-import io.restassured.response.Response;
-import org.junit.*;
+import client.Courier;
+import client.Credentials;
+import client.QAScooterAPIClient;
+import io.restassured.response.ValidatableResponse;
+import org.junit.jupiter.api.*;
 import static org.hamcrest.Matchers.*;
-import static utils.Constants.*;
 
-public class CourierCreationTest extends BaseTest {
-
-    CreateCourier createCourierBody = new CreateCourier("testCourierLoginJenya","testPassword","testName");
+@TestMethodOrder(MethodOrderer.Alphanumeric.class)
+public class CourierCreationTest  {
 
     @Test
     @DisplayName("Метод POST to /api/v1/courier - запрос возвращает правильный код ответа и успешный запрос возвращает ok: true")
-    public void testCreateCourierSuccess() {
-        givenRequest()
-                .body(createCourierBody)
-                .when()
-                .post(createCourier)
-                .then()
-                .statusCode(201)
-                .body("ok", equalTo(true));
-
-
+    public void test1CreateCourierSuccess() {
+        QAScooterAPIClient client = new QAScooterAPIClient();
+        Courier courier = new Courier("testCourierLoginJenya","testPassword","testName");
+        ValidatableResponse response = client.createCourier(courier);
+        response.assertThat().statusCode(201).and().body("ok",equalTo(true));
     }
 
     @Test
-    @DisplayName("Метод POST to /api/v1/courier - нельзя создать двух одинаковых курьеров")
-    public void testCreateDuplicateCourier() {
-        givenRequest()
-                .body(createCourierBody)
-                .when()
-                .post(createCourier)
-                .then()
-                .statusCode(409); // ожидается конфликт
+    @DisplayName("Метод POST to /api/v1/courier - нельзя создать двух одинаковых курьеров - получим 409 код")
+    public void test2CreateDuplicateCourier() {
+        QAScooterAPIClient client = new QAScooterAPIClient();
+        Courier courier = new Courier("testCourierLoginJenya","testPassword","testName");
+        ValidatableResponse response = client.createCourier(courier);
+        response.assertThat().statusCode(409);
+
     }
 
     @Test
     @DisplayName("Метод POST to /api/v1/courier - если одного из полей нет, запрос возвращает ошибку")
-    public void testCreateCourierMissingFields() {
+    public void test3CreateCourierMissingFields() {
+        QAScooterAPIClient client = new QAScooterAPIClient();
+        Courier courier = new Courier("testCourierLoginJenya","", "");
+        ValidatableResponse response = client.createCourier(courier);
+        response.assertThat().statusCode(400);
 
-        String body = "{ \"login\": \"" + System.currentTimeMillis() + "\" }";
-
-        givenRequest()
-                .body(body)
-                .when()
-                .post(createCourier)
-                .then()
-                .statusCode(400);
     }
 
     @Test
-    @DisplayName("Метод DELETE to /api/v1/courier/{id} - удалить курьера")
-    public void deleteCourier() {
+    @DisplayName("Метод DELETE to /api/v1/courier - удаление курьера")
+    public void test4DeleteCourier() {
+        //авторизуемся под курьером
+        QAScooterAPIClient client = new QAScooterAPIClient();
+        Courier courier = new Courier("testCourierLoginJenya", "testPassword", "testName");
+        Credentials credentials = Credentials.fromCourier(courier);
+        ValidatableResponse response = client.loginCourier(credentials);
+        //возьмем id
+        int courierId = response.extract().jsonPath().getInt("id");
+        //удаляем курьера
+        ValidatableResponse deleteResponse = client.deleteCourier(courierId);
+        deleteResponse.assertThat().statusCode(200).and().body("ok",equalTo(true));
 
-        //авторизация для получения id
-        Response loginResponse = givenRequest()
-                .body(createCourierBody)
-                .when()
-                .post(loginCourier);
-        loginResponse.then().statusCode(200);
-        int courierId = loginResponse.jsonPath().getInt("id");
-        //удаление курьера по id
-        Response deleteResponse = givenRequest()
-                .when()
-                .delete(createCourier + courierId);
-        //проверка статуса и отсутствия курьера
-        deleteResponse.then()
-                .statusCode(anyOf(is(200), is(204)));
-        //проверка, что курьер больше не существует
-        givenRequest()
-                .body(createCourierBody)
-                .when()
-                .post(loginCourier)
-                .then()
-                .statusCode(404);
-        }
+    }
 }

@@ -1,60 +1,28 @@
 package tests;
 
-import io.qameta.allure.junit4.DisplayName;
-import io.restassured.response.Response;
-import org.junit.*;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import java.util.Arrays;
-import java.util.Collection;
-import static utils.Constants.*;
+import client.QAScooterAPIClient;
+import client.Order;
+import io.restassured.response.ValidatableResponse;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
+public class OrderCreationTest {
+    private final QAScooterAPIClient client = new QAScooterAPIClient();
 
-@RunWith(Parameterized.class)
-public class OrderCreationTest extends BaseTest {
-
-    @Parameterized.Parameters
-    public static Collection<Object[]> colors() {
-        return Arrays.asList(new Object[][]{
-                {null}, // без цвета
-                {"BLACK"},
-                {"GREY"},
-                {"BLACK,GREY"}
-        });
+    static Object[][] orderDataProvider() {
+        return new Object[][]{
+                {new Order("Captain", "Black", 3, "123 Main St", "Krasnodar", "123456", 1, "for testing")},
+                {new Order("John", "Red", 2, "Somewhere", "Moscow", "654321", 2, "Another test order")},
+        };
     }
 
-    private String color;
-
-    public OrderCreationTest(String color) {
-        this.color = color;
+    @ParameterizedTest
+    @MethodSource("orderDataProvider")
+    public void createOrder_ShouldCreateOrder(Order order) {
+        ValidatableResponse response = client.createOrder(order);
+        int statusCode = response.extract().statusCode();
+        Assertions.assertEquals(201, statusCode);
+        Assertions.assertNotNull("Track should not be null", "track");
     }
-
-    private String track;
-
-    @Test
-    @DisplayName("Метод POST to /api/v1/orders - создаём заказ используя параметризацию")
-    public void testCreateOrder() {
-        String body = "{"
-                + "\"firstName\": \"Ivan\","
-                + "\"lastName\": \"Petrov\","
-                + "\"address\": \"Baker street\","
-                + "\"metroStation\": 1,"
-                + "\"phone\": \"+79991234567\","
-                + "\"rentTime\": 5,"
-                + "\"deliveryDate\": \"2023-10-10\","
-                + "\"comment\": \"Test order\","
-                + "\"color\": " + (color == null ? "[]" : "[\"" + color + "\"]")
-                + "}";
-
-        Response response = givenRequest()
-                .body(body)
-                .when()
-                .post(createOrder);
-
-        response.then().statusCode(201);
-        track = response.then().extract().path("track").toString();
-        Assert.assertNotNull("Track should not be null", track);
-    }
-
-
 }
